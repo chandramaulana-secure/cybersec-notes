@@ -206,3 +206,72 @@ Saat data dikirim dari satu *host* ke *host* lain, data tersebut dibungkus berla
 5. **Bit (Physical Layer - Layer 1):** Diubah menjadi sinyal listrik, cahaya, atau gelombang radio untuk dikirim melalui media fisik/nirkabel.
 
 * **Catatan penting saat paket melintas *router*:** **IP address** asal dan tujuan *end-to-end* tetap dipertahankan (kecuali diubah oleh NAT), sedangkan **MAC address** di *frame* Layer 2 **berubah tiap lompatan (*hop*)**—dari pengirim ke *router* lokal, lalu dari *router* lokal ke *hop* berikutnya sampai ke jaringan tujuan.
+
+---
+
+## 14. ICMP & Perintah Diagnostik Jaringan Dasar
+**ICMP (*Internet Control Message Protocol*)** bekerja di Layer 3 (bersama IP) untuk mengirim pesan kontrol, status, dan diagnostik jaringan—bukan untuk mengirim data aplikasi pengguna seperti TCP/UDP.
+
+* **Fungsi & pesan umum ICMP:**
+  * **Echo Request & Echo Reply:** Dipakai oleh `ping` untuk mengecek keterjangkauan (*reachability*) dan latensi (*round-trip time*) ke *host* tujuan.
+  * **Time Exceeded:** Dikirim *router* saat nilai **TTL (*Time To Live*)** paket IP habis (`0`) sebelum sampai tujuan—ini dasar cara kerja `traceroute` (Linux) / `tracert` (Windows) dalam memetakan jalur *hop* demi *hop*.
+  * **Destination Unreachable:** Memberi tahu bahwa jaringan, *host*, atau *port* tertentu tidak bisa dijangkau (misalnya *port unreachable* di UDP).
+* **Catatan penting buat *pentest*:** *Host* yang tidak membalas `ping` (ICMP *Echo Request* di-*drop* oleh *firewall*) **belum tentu mati/down**—bisa jadi *port* layanan seperti `80`, `443`, atau `22` tetap aktif dan terbuka.
+* **Perintah diagnostik dasar (Linux & Windows):**
+  * **Cek IP & *interface*:** `ip a` / `ifconfig` (Linux) atau `ipconfig` / `ipconfig /all` (Windows).
+  * **Cek *routing table*:** `ip route` (Linux) atau `route print` (Windows).
+  * **Cek tabel ARP:** `ip neigh` / `arp -a` (Linux) atau `arp -a` (Windows).
+  * **Cek koneksi aktif & *listening port*:** `ss -tulnp` / `netstat -tulnp` (Linux) atau `netstat -ano` (Windows).
+
+---
+
+## 15. Dasar *Routing* & *Routing Table*
+Saat paket IP mau dikirim ke jaringan lain, *router* (atau *host* itu sendiri) melihat **Routing Table** untuk menentukan jalur keluar terbaik.
+
+* **Komponen utama entri *routing table*:**
+  * **Destination & Netmask/Prefix:** Blok jaringan tujuan (misalnya `192.168.10.0/24` atau `0.0.0.0/0`).
+  * **Gateway / Next Hop:** IP *router* berikutnya yang harus menerima paket jika tujuan bukan di jaringan lokal langsung.
+  * **Interface:** Antarmuka jaringan lokal (`eth0`, `wlan0`, dll.) yang dipakai mengirim paket.
+  * **Metric / Administrative Distance:** Nilai prioritas jalur—semakin kecil *metric*-nya (pada protokol/sumber yang sama), semakin dipilih jalur tersebut.
+* **Default Route (`0.0.0.0/0`):** Aturan "jalur terakhir" jika tidak ada entri yang lebih spesifik cocok dengan IP tujuan; paket akan diarahkan ke *default gateway*.
+* **Static Routing vs Dynamic Routing:**
+  * **Static routing:** Rute dikonfigurasi manual oleh administrator; ringan dan bisa diprediksi, tapi tidak otomatis beradaptasi kalau ada jalur putus di jaringan besar.
+  * **Dynamic routing:** *Router* saling bertukar informasi rute otomatis menggunakan protokol *routing* (seperti OSPF atau BGP) untuk menyesuaikan perubahan topologi.
+
+---
+
+## 16. VLAN (*Virtual LAN*) & *Trunking*
+Secara *default*, semua *port* pada satu *switch* berada di satu *broadcast domain* yang sama. **VLAN** memisahkan jaringan secara logis di Layer 2 tanpa harus membeli *switch* fisik terpisah.
+
+* **Manfaat utama VLAN:**
+  * Membatasi *broadcast* agar tidak menyebar ke seluruh jaringan.
+  * Memisahkan segmen lalu lintas (misalnya VLAN `10` untuk *Staff*, VLAN `20` untuk *Guest*, VLAN `30` untuk *Server/Management*) sehingga kontrol keamanan/firewall antar-segmen lebih jelas.
+* **Access Port vs Trunk Port:**
+  * **Access port:** Biasanya terhubung ke *end device* (PC, printer, IP phone) dan membawa lalu lintas untuk **satu VLAN** saja (umumnya *untagged* di *frame* yang keluar ke *host*).
+  * **Trunk port:** Biasanya menghubungkan *switch* ke *switch* atau *switch* ke *router/firewall* untuk membawa lalu lintas **banyak VLAN** sekaligus menggunakan *tagging* standar **IEEE 802.1Q**.
+* **Catatan keamanan:** Antar-VLAN tidak bisa saling komunikasi langsung di Layer 2 tanpa perangkat Layer 3 (*Router* atau *Layer 3 Switch* / *Inter-VLAN routing*)—di sinilah *policy* atau *ACL* sering ditempatkan.
+
+---
+
+## 17. Dasar Protokol Keamanan Jaringan
+Untuk melindungi data dan akses saat melintas di jaringan yang tidak selalu tepercaya, ada beberapa mekanisme keamanan dasar yang sering dijumpai:
+
+* **TLS / SSL (*Transport Layer Security*):** Menyediakan enkripsi, integritas data, dan autentikasi identitas server (lewat sertifikat) untuk komunikasi seperti **HTTPS** (`443`), *mail* aman, atau layanan lain—mencegah penyadapan (*eavesdropping*) dan modifikasi data di tengah jalan.
+* **SSH (*Secure Shell* - *port* `22`):** Protokol *remote access* dan transfer file yang terenkripsi, menggantikan protokol lama yang mengirim kredensial/perintah secara *plaintext* seperti **Telnet** (`23`) atau **FTP** polos (`21`).
+* **VPN (*Virtual Private Network*):** Membuat jalur terenkripsi (*tunnel*) di atas jaringan publik (seperti internet) sehingga *host* jarak jauh bisa terhubung ke jaringan privat seolah berada di jaringan lokal yang sama.
+* **Firewall & ACL (*Access Control List*):** Menyaring paket/koneksi berdasarkan aturan seperti IP asal/tujuan, *port*, protokol, atau status koneksi (*stateful*—melacak apakah paket merupakan bagian dari sesi yang sah).
+
+---
+
+## 18. Konversi Bilangan: Biner, Desimal & Heksadesimal
+Memahami konversi antar-sistem bilangan membantu membaca alamat jaringan, *subnet mask*, MAC address, dan IPv6 tanpa bergantung penuh pada kalkulator.
+
+* **Biner (Basis 2 — digit `0` dan `1`):** Bahasa dasar perangkat digital. Dalam 1 oktet (8-bit), bobot tiap bit dari kiri ke kanan adalah:
+  `128 | 64 | 32 | 16 | 8 | 4 | 2 | 1`
+  * Contoh: `11000000` = `128 + 64` = **`192`**.
+  * Contoh: `10101000` = `128 + 32 + 8` = **`168`**.
+* **Desimal (Basis 10 — digit `0`–`9`):** Format umum penulisan IPv4 (`192.168.1.1`) dan *subnet mask* (`255.255.255.0`).
+  * Untuk mengubah desimal ke biner (8-bit), kurangi angka secara bertahap dari bobot terbesar (`128`, `64`, dst.) yang muat—setiap yang muat bernilai `1`, sisanya `0`.
+* **Heksadesimal (Basis 16 — digit `0`–`9` dan huruf `A`–`F`, di mana `A=10`, `B=11`, `C=12`, `D=13`, `E=14`, `F=15`):** Ringkas untuk merepresentasikan bit karena **1 digit hex = 4 bit biner** (2 digit hex = 8 bit / 1 byte).
+  * Dipakai pada **MAC address** (`48-bit` = 12 karakter hex) dan **IPv6** (`128-bit` = 32 karakter hex yang dikelompokkan per 4 karakter / 16-bit).
+  * Contoh: `0xFF` (atau `ff`) dalam biner adalah `11111111` = **`255`** dalam desimal.
